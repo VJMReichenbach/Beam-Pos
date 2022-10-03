@@ -21,7 +21,6 @@ Version: {ver}
 License: GPLv3+
 """
 
-# TODO: Not Working for some reason
 def getXValues(img: np.ndarray):
     """Returns the average light intensity for each row in the image"""
     xValues = []
@@ -31,6 +30,16 @@ def getXValues(img: np.ndarray):
             currentVal += img[y, x]
         xValues.append(currentVal/img.shape[1])
     return xValues
+
+def getYValues(img: np.ndarray):
+    """Returns the average light intensity for each column in the image"""
+    yValues = []
+    for y in range(img.shape[0]):
+        currentVal = 0
+        for x in range(img.shape[1]):
+            currentVal += img[y, x]
+        yValues.append(currentVal/img.shape[0])
+    return yValues
 
 def main():
     # parse arguments
@@ -67,9 +76,12 @@ def main():
     subtractedImg = cv2.subtract(img, background)
 
     xValues = getXValues(subtractedImg)
+    yValues = getYValues(subtractedImg)
 
     if args.visualize:
-        plt.plot(xValues)
+        plt.plot(xValues, label="x")
+        plt.plot(yValues, label="y")
+        plt.legend()
         plt.show()
 
     if args.visualize >= 2:
