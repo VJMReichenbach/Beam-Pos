@@ -1,10 +1,14 @@
 #!/usr/bin/python3
+import matplotlib
 import matplotlib.pyplot as plt
 import argparse
 from pathlib import Path
 import cv2
 import numpy as np
-from PIL import Image, ImageStat
+
+# use a different backend for matplotlib since the default one causes problems with cv2
+# On debian install "python3-pil python3-pil.imagetk" if this causes problems
+matplotlib.use("tkagg")
 
 ver = "0.0.1"
 author = "Valentin Reichenbach"
@@ -15,38 +19,33 @@ epilog = f"""
 Author: {author}
 Version: {ver}
 License: GPLv3+
-"""    
+"""
 
-def removeBackground(args):
-    # Read the background image
-    background = cv2.imread(str(args.background))
-    img = cv2.imread(str(args.input))
-
-    backSub = cv2.createBackgroundSubtractorMOG2()
-    _ = backSub.apply(background)
-    fgMask = backSub.apply(img)
-    
-    # write the img with background subtracted to file
-    output = cv2.bitwise_and(img, img, mask=fgMask)
-    cv2.imwrite(str(args.output), output)
-    print(f"Output written to {args.output}")
-
-def getXValues(img: Image):
+# TODO: Not Working for some reason
+def getXValues(img: np.ndarray):
+    """Returns the average light intensity for each row in the image"""
     xValues = []
-    for x in range(img.width):
+    for x in range(img.shape[1]):
         currentVal = 0
-        for y in range(img.height):
-            currentVal += img.getpixel((x,y))
-        xValues.append(currentVal)
+        for y in range(img.shape[0]):
+            currentVal += img[y, x]
+        xValues.append(currentVal/img.shape[1])
     return xValues
 
 def main():
-    parser = argparse.ArgumentParser(description=description, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('-i', "--input",type=Path, required=True ,help="the input file with the beam positions")
-    parser.add_argument('-b', '--background',type=Path ,required=True ,help="the file with the background image")
-    parser.add_argument('-o', '--output',type=Path,default=Path('output.jpg') ,help="the output file")
-    parser.add_argument('-p', '--position', action='store_true',default=False ,help="add the position of the beam to the output image")
-    parser.add_argument('--visualize',action='store_true',help="show the image")
+    # parse arguments
+    parser = argparse.ArgumentParser(
+        description=description, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('-i', "--input", type=Path, required=True,
+                        help="the input file with the beam positions")
+    parser.add_argument('-b', '--background', type=Path,
+                        required=True, help="the file with the background image")
+    parser.add_argument('-o', '--output', type=Path,
+                        default=Path('output.jpg'), help="the output file")
+    parser.add_argument('-p', '--position', action='store_true', default=False,
+                        help="add the position of the beam to the output image")
+    parser.add_argument('-v','--visualize', action='count', default=0,
+                        help="show the image")
     parser.add_argument('-V', '--version', action='version', version=f'{ver}')
 
     args = parser.parse_args()
@@ -55,20 +54,29 @@ def main():
         print(f"ERROR: Input file {args.input} does not exist\nExiting...")
         exit()
     if not args.background.is_file():
-        print(f"ERROR: Background file {args.background} does not exist\nExiting...")
+        print(
+            f"ERROR: Background file {args.background} does not exist\nExiting...")
         exit()
 
-    removeBackground(args)
-    outputImg = Image.open(args.output).convert('L')
-    
+    # read in image
+    img = cv2.imread(str(args.input))
+    # read in background
+    background = cv2.imread(str(args.background))
+    # subtract background
+    subtractedImg = cv2.subtract(img, background)
+
+    xValues = getXValues(subtractedImg)
+    # print(xValues)
+
     if args.visualize:
-        # show all 3 images
-        # cv2.imshow("Input", img)
-        # cv2.imshow("Background", background)
-        # plot xvales
-        xValues = getXValues(outputImg)
         plt.plot(xValues)
         plt.show()
+
+    if args.visualize >= 2:
+        cv2.imshow("Input", img)
+        cv2.imshow("Background", background)
+        cv2.imshow("Subtracted", subtractedImg)
+        cv2.waitKey(0)
 
 
 if __name__ == "__main__":
