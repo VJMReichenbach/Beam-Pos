@@ -58,15 +58,15 @@ def main():
             f"ERROR: Background file {args.background} does not exist\nExiting...")
         exit()
 
+    
     # read in image
-    img = cv2.imread(str(args.input))
+    img = cv2.imread(str(args.input), cv2.IMREAD_GRAYSCALE)
     # read in background
-    background = cv2.imread(str(args.background))
+    background = cv2.imread(str(args.background), cv2.IMREAD_GRAYSCALE)
     # subtract background
     subtractedImg = cv2.subtract(img, background)
 
     xValues = getXValues(subtractedImg)
-    # print(xValues)
 
     if args.visualize:
         plt.plot(xValues)
