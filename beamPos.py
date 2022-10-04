@@ -92,27 +92,27 @@ def getBeamPos(args: argparse.Namespace):
     for i in range(len(img)):
         subtractedImg.append(cv2.subtract(img[i], background))
 
-    xValuesList = []
-    yValuesList = []
+    xValueList = []
+    yValueList = []
     for i in range(len(subtractedImg)):
-        xValuesList.append(getXValues(subtractedImg, i))
-        yValuesList.append(getYValues(subtractedImg, i))
+        xValueList.append(getXValues(subtractedImg, i))
+        yValueList.append(getYValues(subtractedImg, i))
 
     # fit gaussian
     xGaussList = []
     yGaussList = []
     for i in range(len(subtractedImg)):
-        xGaussList.append(fitGaussian(xValuesList[i]))
-        yGaussList.append(fitGaussian(yValuesList[i]))
+        xGaussList.append(fitGaussian(xValueList[i]))
+        yGaussList.append(fitGaussian(yValueList[i]))
 
     # calcualte mean of gaussians
-    # TODO: means are wrong
     xMeans = []
     yMeans = []
     for i in range(len(subtractedImg)):
-        print(f"calculating mean of {args.input[i]}")
-        xMeans.append(np.mean(xGaussList[i]))
-        yMeans.append(np.mean(yGaussList[i]))
+        x = np.arange(0, len(xGaussList[i]), 1)
+        y = np.arange(0, len(yGaussList[i]), 1)
+        xMeans.append(np.sum(xGaussList[i]*x)/np.sum(xGaussList[i]))
+        yMeans.append(np.sum(yGaussList[i]*y)/np.sum(yGaussList[i]))
 
     # print results
     print("xMean\t\t\tyMean")
@@ -131,15 +131,16 @@ def getBeamPos(args: argparse.Namespace):
             exit()
         for i in range(len(subtractedImg)):
             fig, (ax1, ax2) = plt.subplots(2, 1)
-            ax1.plot(xValuesList[i])
+            ax1.plot(xValueList[i])
             ax1.plot(xGaussList[i])
-            ax2.plot(yValuesList[i])
+            ax2.plot(yValueList[i])
             ax2.plot(yGaussList[i])
+            
+            plt.suptitle(f"{args.input[i]}")
             plt.show()
 
-        # show the images if requested
-        if args.visualize >= 2:
-            for i in range(len(subtractedImg)):
+            # show the images if requested
+            if args.visualize >= 2:
                 cv2.imshow("Input image", img[i])
                 cv2.imshow("Subtracted image", subtractedImg[i])
                 cv2.imshow("Background image", background)
