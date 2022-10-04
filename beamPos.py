@@ -113,15 +113,14 @@ def getBeamPos(args: argparse.Namespace):
         y = np.arange(0, len(yGaussList[i]), 1)
         xMeans.append(np.sum(xGaussList[i]*x)/np.sum(xGaussList[i]))
         yMeans.append(np.sum(yGaussList[i]*y)/np.sum(yGaussList[i]))
-
+        
     # print results
-    print("xMean\t\t\tyMean")
+    print("xMean\t\t\tyMean\t\t\tImage")
     for i in range(len(subtractedImg)):
         if not args.round:
-            print(f"{xMeans[i]}\t{yMeans[i]}")
+            print(f"{xMeans[i]}\t{yMeans[i]}\t{args.input[i].name}")
         else:
-            print(
-                f"{round(xMeans[i], ndigits=5)}\t{round(yMeans[i], ndigits=5)}")
+            print(f"{round(xMeans[i], ndigits=5)}\t{round(yMeans[i], ndigits=5)}\t{args.input[i].name}")
 
     # plot the data and the fit if requested
     if args.visualize:
@@ -135,15 +134,20 @@ def getBeamPos(args: argparse.Namespace):
             ax1.plot(xGaussList[i])
             ax2.plot(yValueList[i])
             ax2.plot(yGaussList[i])
-            
+
             plt.suptitle(f"{args.input[i]}")
             plt.show()
 
             # show the images if requested
             if args.visualize >= 2:
-                cv2.imshow("Input image", img[i])
+                if args.position:
+                    cv2.circle(subtractedImg[i], (int(xMeans[i]), int(yMeans[i])), 10, args.color, args.thickness)
+                    cv2.circle(subtractedImg[i], (int(xMeans[i]), int(yMeans[i])), 2, args.color, args.thickness)
+
                 cv2.imshow("Subtracted image", subtractedImg[i])
-                cv2.imshow("Background image", background)
+                if args.visualize >= 3:
+                    cv2.imshow("Input image", img[i])
+                    cv2.imshow("Background image", background)
                 cv2.waitKey(0)
                 cv2.destroyAllWindows()
 
@@ -156,10 +160,12 @@ def main():
                         help="the input file with the beam positions. This can be either a single file or a directory containing multiple files")
     parser.add_argument('-b', '--background', type=Path,
                         help="the file with the background image. This can only be a single file")
+    parser.add_argument('-v', '--visualize', action='count', default=0,help="show the image")
     parser.add_argument('-p', '--position', action='store_true', default=False,
                         help="add the position of the beam to the output image")
-    parser.add_argument('-v', '--visualize', action='count', default=0,
-                        help="show the image")
+    parser.add_argument('-c', '--color', type=int, nargs=3, default=[
+                        0, 0, 255], help="the color of the circle indicating the beam position")
+    parser.add_argument('--thickness', type=int, default=2,help="the thickness of the circle indicating the beam position")
     parser.add_argument('--markersize', type=float,
                         default=1.2, help="the size of the markers. The default is 1.2")
     parser.add_argument('--round', action='store_true',
