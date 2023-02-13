@@ -82,7 +82,7 @@ def fitGaussian(xValues: list):
     return xGauss
 
 
-def getBeamPos(args: argparse.Namespace):
+def getBeamPos(args: argparse.Namespace) -> tuple[list, list]:
     # read in image
     img = readInputImg(args.input)
     # read in background
@@ -150,6 +150,7 @@ def getBeamPos(args: argparse.Namespace):
                     cv2.imshow("Background image", background)
                 cv2.waitKey(0)
                 cv2.destroyAllWindows()
+    return xMeans, yMeans
 
 
 def main():
@@ -160,6 +161,7 @@ def main():
                         help="the input file with the beam positions. This can be either a single file or a directory containing multiple files")
     parser.add_argument('-b', '--background', type=Path,
                         help="the file with the background image. This can only be a single file")
+    parser.add_argument('-o', '--output', type=Path, help="allows you to output into a specific file", default=None)
     parser.add_argument('-v', '--visualize', action='count', default=0,help="show the image")
     parser.add_argument('-p', '--position', action='store_true', default=False,
                         help="add the position of the beam to the output image")
@@ -198,7 +200,26 @@ def main():
             f"ERROR: Background file {args.background} does not exist\nExiting...")
         exit()
 
-    getBeamPos(args)
+    if args.output.is_file():
+        if not args.force:
+            print('ERROR: Output file already exists')
+            print('Use --force to overwrite the file')
+            print('Exiting...')
+            exit()
+    
+
+    xMeans, yMeans = getBeamPos(args)
+
+    if args.output is not None:
+        with open(args.output, 'w') as f:
+            f.write("xMean\t\tyMean\t\tImage")
+            # write the results to the file
+            for i in range(len(xMeans)):
+                if not args.round:
+                    f.write(f"{xMeans[i]}\t{yMeans[i]}\t{args.input[i].name}")
+                else:
+                    f.write(f"{round(xMeans[i], ndigits=5)}\t{round(yMeans[i], ndigits=5)}\t{args.input[i].name}")
+            f.close()
 
 
 if __name__ == "__main__":
