@@ -6,6 +6,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 from scipy.optimize import curve_fit
+import csv
 
 # On debian install "python3-pil python3-pil.imagetk" if this causes problems
 matplotlib.use("tkagg")
@@ -44,6 +45,15 @@ def readInputImg(paths: list):
     for path in paths:
         imgs.append(cv2.imread(str(path), cv2.IMREAD_GRAYSCALE))
     return imgs
+
+def writeToOutputFile(path: Path, xMeans: list, yMeans: list, name: list) -> None:
+    """Writes the results to a csv file"""
+    print(f"Writing results to {path}")
+    with open(path, "w") as f:
+        writer = csv.writer(f, delimiter="\t")
+        writer.writerow(["xMean", "yMean", "Image"])
+        for i in range(len(xMeans)):
+            writer.writerow([xMeans[i], yMeans[i], name[i]])
 
 
 def gaussian(x, a, x0, sigma):
@@ -161,7 +171,7 @@ def main():
                         help="the input file with the beam positions. This can be either a single file or a directory containing multiple files")
     parser.add_argument('-b', '--background', type=Path,
                         help="the file with the background image. This can only be a single file")
-    parser.add_argument('-o', '--output', type=Path, help="allows you to output into a specific file", default=None)
+    parser.add_argument('-o', '--output', type=Path, help="allows you to output into a specific csv file", default=None)
     parser.add_argument('-v', '--visualize', action='count', default=0,help="show the image")
     parser.add_argument('-p', '--position', action='store_true', default=False,
                         help="add the position of the beam to the output image")
@@ -211,16 +221,10 @@ def main():
     xMeans, yMeans = getBeamPos(args)
 
     if args.output is not None:
-        with open(args.output, 'w') as f:
-            f.write("xMean\t\tyMean\t\tImage")
-            # write the results to the file
-            for i in range(len(xMeans)):
-                if not args.round:
-                    f.write(f"{xMeans[i]}\t{yMeans[i]}\t{args.input[i].name}")
-                else:
-                    f.write(f"{round(xMeans[i], ndigits=5)}\t{round(yMeans[i], ndigits=5)}\t{args.input[i].name}")
-            f.close()
-
+        # remove fileextension from output file
+        path = Path(args.output.with_suffix('.csv'))
+        # create output directory if it does not exist
+        writeToOutputFile(path, xMeans, yMeans, args.input)
 
 if __name__ == "__main__":
     main()
