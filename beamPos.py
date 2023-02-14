@@ -210,12 +210,13 @@ def main():
             f"ERROR: Background file {args.background} does not exist\nExiting...")
         exit()
 
-    if args.output.is_file():
-        if not args.force:
-            print('ERROR: Output file already exists')
-            print('Use --force to overwrite the file')
-            print('Exiting...')
-            exit()
+    if args.output is not None:
+        if args.output.is_file(): 
+            if not args.force:
+                print('ERROR: Output file already exists')
+                print('Use --force to overwrite the file')
+                print('Exiting...')
+                exit()
     
 
     xMeans, yMeans = getBeamPos(args)
