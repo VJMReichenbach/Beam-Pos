@@ -3,10 +3,11 @@ A python script to find the position of a beam on a target
 
 ## Installation
 
-This program needs `cv2` to be installed.
+This program needs `cv2` and the requirements from `requirements.txt` to be installed.
 
 ```bash
-pip install opencv-python
+pip install opencv-python 
+pip install -r requirements.txt
 ```
 ## Todo
 

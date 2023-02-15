@@ -1,60 +1,25 @@
 #!/usr/bin/python3
-import matplotlib
-import matplotlib.pyplot as plt
 import argparse
 from pathlib import Path
-import cv2
 import numpy as np
+import cv2
 from scipy.optimize import curve_fit
-import csv
+import matplotlib
+import matplotlib.pyplot as plt
 
-# On debian install "python3-pil python3-pil.imagetk" if this causes problems
-matplotlib.use("tkagg")
 
 ver = "0.0.1"
 author = "Valentin Reichenbach"
 description = f"""
-TODO: Insert description
+This program takes a folder (name of folder will be used as the steerer name) as an input that contains multiple subfolders. Each subfolder must contain a "current.txt" file that contains only the mesured current and a set of one or more images of the corresponding target.
+
+The program will first find the position of the beam in each image and then calculate the average x and y position for each current. 
 """
 epilog = f"""
 Author: {author}
 Version: {ver}
 License: GPLv3+
 """
-
-
-def inputFile(string: str):
-    """Checks if the input file is valid"""
-    inputPath = Path(string)
-    path = []
-    if inputPath.is_dir():
-        for file in inputPath.iterdir():
-            if file.is_file():
-                path.append(file)
-    elif inputPath.is_file():
-        path.append(inputPath)
-    else:
-        raise argparse.ArgumentTypeError(
-            f"Input file \"{inputPath}\" does not exist\nThis can be either a single file or a directory containing multiple files")
-    return path
-
-
-def readInputImg(paths: list):
-    """Reads in the input images and returns them as a list"""
-    imgs = []
-    for path in paths:
-        imgs.append(cv2.imread(str(path), cv2.IMREAD_GRAYSCALE))
-    return imgs
-
-def writeToOutputFile(path: Path, xMeans: list, yMeans: list, name: list) -> None:
-    """Writes the results to a csv file"""
-    print(f"Writing results to {path}")
-    with open(path, "w") as f:
-        writer = csv.writer(f, delimiter="\t")
-        writer.writerow(["xMean", "yMean", "Image"])
-        for i in range(len(xMeans)):
-            writer.writerow([xMeans[i], yMeans[i], name[i]])
-
 
 def gaussian(x, a, x0, sigma):
     """The gaussian function used for fitting"""
@@ -91,108 +56,151 @@ def fitGaussian(xValues: list):
     xGauss = gaussian(x, *popt)
     return xGauss
 
+def readCurrent(subfolder: Path) -> float:
+    """Reads the current from the current.txt file in a given subfolder and returns it as a float. Returns None if it cant find current.txt"""
+    for file in subfolder.iterdir():
+        if file.is_file():
+            if file.name == "current.txt":
+                with open(file, "r") as f:
+                    return float(f.read())
+    return None
 
-def getBeamPos(args: argparse.Namespace) -> tuple[list, list]:
-    # read in image
-    img = readInputImg(args.input)
-    # read in background
-    background = cv2.imread(str(args.background), cv2.IMREAD_GRAYSCALE)
-    # subtract background
-    subtractedImg = []
-    for i in range(len(img)):
-        subtractedImg.append(cv2.subtract(img[i], background))
+def readInputFolder(folder: Path, verbosity: int):
+    """Takes a folder and returns a dictionary with the current as key and a list of images as value"""
+    if verbosity > 0:
+        print(f"Reading input folder {folder}...")
+    data = {}
+    for subfolder in folder.iterdir():
+        if subfolder.is_dir():
+            current = readCurrent(subfolder)  
+            if current is not None:
+                data[current] = readInputImg(subfolder, verbosity)
+            else:
+                print(f"ERROR: No current.txt file found in {subfolder}")
+    return data
 
-    xValueList = []
-    yValueList = []
-    for i in range(len(subtractedImg)):
-        xValueList.append(getXValues(subtractedImg, i))
-        yValueList.append(getYValues(subtractedImg, i))
+def readInputImg(subfolder: Path, verbosity: int) -> list:
+    """Takes a folder and returns a list of all images in the folder in grayscale"""
+    imgs = []
+    for img in subfolder.iterdir():
+        if img.is_file():
+            if img.suffix in [".jpg", ".png", ".bmp"]:
+                if verbosity > 1:
+                    print(f"Reading {img}")
+                imgs.append(cv2.imread(str(img), cv2.IMREAD_GRAYSCALE))
+    return imgs
 
-    # fit gaussian
-    xGaussList = []
-    yGaussList = []
-    for i in range(len(subtractedImg)):
-        xGaussList.append(fitGaussian(xValueList[i]))
-        yGaussList.append(fitGaussian(yValueList[i]))
+def writeData():
+    """Writes the data to a csv file"""
+    pass
 
-    # calcualte mean of gaussians
-    xMeans = []
-    yMeans = []
-    for i in range(len(subtractedImg)):
-        x = np.arange(0, len(xGaussList[i]), 1)
-        y = np.arange(0, len(yGaussList[i]), 1)
-        xMeans.append(np.sum(xGaussList[i]*x)/np.sum(xGaussList[i]))
-        yMeans.append(np.sum(yGaussList[i]*y)/np.sum(yGaussList[i]))
-        
-    # print results
-    print("xMean\t\t\tyMean\t\t\tImage")
-    for i in range(len(subtractedImg)):
-        if not args.round:
-            print(f"{xMeans[i]}\t{yMeans[i]}\t{args.input[i].name}")
-        else:
-            print(f"{round(xMeans[i], ndigits=5)}\t{round(yMeans[i], ndigits=5)}\t{args.input[i].name}")
+def getBeamPos(imagesWithCurrent: dict, plot: bool, verbosity: int, figureName: str):
+    """gets the x and y position of the beam in an image, by finding the mean of the gaussian fit of the x and y values.
+    Returns a dict with current as key and the x and y position as an array as the value.
+    Example: {0.0: [x, y], 0.1: [x, y], ...}
+    If plot is True, it will plot the x and y values in 2 subplots."""
+    beamPos = {}
+    std = {}
+    for current in imagesWithCurrent:
+        beamPos[current] = []
+        for i in range(len(imagesWithCurrent[current])):
+            if verbosity > 1:
+                print(f"Finding beam position for {figureName} with {current}A")
+            # get the x and y values and fit a gaussian to them
+            xValues = getXValues(imagesWithCurrent[current], i)
+            yValues = getYValues(imagesWithCurrent[current], i)
+            xGauss = fitGaussian(xValues)
+            yGauss = fitGaussian(yValues)
+            # calculate the mean of the gaussian fit
+            # idk why, but only my old method works  ¯\_(ツ)_/¯
+            # xMean = np.mean(xGauss)
+            # yMean = np.mean(yGauss)
+            xLen = np.arange(0, len(xGauss), 1)
+            yLen = np.arange(0, len(yGauss), 1)
+            xMean = np.sum(xGauss*xLen)/np.sum(xGauss)
+            yMean = np.sum(yGauss*yLen)/np.sum(yGauss)
+            # calculate the standard deviation of the gaussian fit 
+            xStd = np.std(xGauss)
+            yStd = np.std(yGauss)
 
-    # plot the data and the fit if requested
-    if args.visualize:
-        if len(subtractedImg) > 1 and not args.force:
-            print(
-                f"WARNING: You are trying to visualize more than one image. This is not supported yet. Use the -f flag to force this")
-            exit()
-        for i in range(len(subtractedImg)):
-            fig, (ax1, ax2) = plt.subplots(2, 1)
-            ax1.plot(xValueList[i])
-            ax1.plot(xGaussList[i])
-            ax2.plot(yValueList[i])
-            ax2.plot(yGaussList[i])
+            beamPos[current].append([xMean, yMean])
+            std[current] = [xStd, yStd]
 
-            plt.suptitle(f"{args.input[i]}")
-            plt.show()
+            if plot:
+                # plot the x and y values in 2 subplots
+                # title the whole plot after the folder name
+                fig, (ax1, ax2) = plt.subplots(1, 2)
+                fig.suptitle(f"{figureName} with {current}A")
+                ax1.plot(xValues, label="x values")
+                ax1.plot(xGauss, label="x gaussian fit")
+                ax1.set_title("X values")
+                ax2.plot(yValues, label="y values")
+                ax2.plot(yGauss, label="y gaussian fit")
+                ax2.set_title("Y values")
+                ax1.legend()
+                ax2.legend()
+                plt.show()
+    return beamPos, std
 
-            # show the images if requested
-            if args.visualize >= 2:
-                if args.position:
-                    cv2.circle(subtractedImg[i], (int(xMeans[i]), int(yMeans[i])), 10, args.color, args.thickness)
-                    cv2.circle(subtractedImg[i], (int(xMeans[i]), int(yMeans[i])), 2, args.color, args.thickness)
+def main(inputFolder: Path, background: Path, output: Path, show: bool, plot_gauss: bool, round: bool, force: bool, verbosity: int):
+    # figure name
+    figureName = inputFolder.name
+    # get a dict of the images as arrays with the current as key
+    imagesWithCurrent = readInputFolder(inputFolder, verbosity)
+    # read the background images
+    background = cv2.imread(str(background), cv2.IMREAD_GRAYSCALE)
+    # subtract the background from the imagesWithCurrent
+    for current in imagesWithCurrent:
+        for i in range(len(imagesWithCurrent[current])):
+            imagesWithCurrent[current][i] = cv2.subtract(
+                imagesWithCurrent[current][i], background)
 
-                cv2.imshow("Subtracted image", subtractedImg[i])
-                if args.visualize >= 3:
-                    cv2.imshow("Input image", img[i])
-                    cv2.imshow("Background image", background)
+    # show the subtracted images
+    if show:
+        for current in imagesWithCurrent:
+            for img in imagesWithCurrent[current]:
+                cv2.imshow(f"{figureName} with {current}A", img)
                 cv2.waitKey(0)
                 cv2.destroyAllWindows()
-    return xMeans, yMeans
+
+    # get the beam position
+    beamPos, std = getBeamPos(imagesWithCurrent, plot_gauss, verbosity, figureName)
+    print(f"beam position: {beamPos}")
+    print(f"standard deviation: {std}")
+
+    if output is not None:
+        if output.exists() and not force:
+            print(f"ERROR: {output} already exists. Use -f to overwrite.")
+            return
 
 
-def main():
-    # parse arguments
-    parser = argparse.ArgumentParser(
-        description=description, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('-i', "--input", type=inputFile,
-                        help="the input file with the beam positions. This can be either a single file or a directory containing multiple files")
-    parser.add_argument('-b', '--background', type=Path,
-                        help="the file with the background image. This can only be a single file")
-    parser.add_argument('-o', '--output', type=Path, help="allows you to output into a specific csv file", default=None)
-    parser.add_argument('-v', '--visualize', action='count', default=0,help="show the image")
-    parser.add_argument('-p', '--position', action='store_true', default=False,
-                        help="add the position of the beam to the output image")
-    parser.add_argument('-c', '--color', type=int, nargs=3, default=[
-                        0, 0, 255], help="the color of the circle indicating the beam position")
-    parser.add_argument('--thickness', type=int, default=2,help="the thickness of the circle indicating the beam position")
-    parser.add_argument('--markersize', type=float,
-                        default=1.2, help="the size of the markers. The default is 1.2")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=description, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)  
+
+    # arguments
+    parser.add_argument("-i", "--input", type=Path, help="Folder containing the subfolders with the images and the current.txt file")
+    parser.add_argument("-b", "--background", help="Background image to be used for the subtraction")
+    parser.add_argument("-o", "--output", type=Path, default=None, help=".csv file to save the results to. If not specified, the results will be printed to the console.")
+    parser.add_argument('--show', action='store_true', default=False,help="show the image")
+    parser.add_argument('--plot-gauss', action='store_true', default=False, help="plot the gaussian fit for each image")
     parser.add_argument('--round', action='store_true',
                         default=False, help="round the beam position")
     parser.add_argument('-f', '--force', action='store_true',
                         default=False, help="skip all warnings")
     parser.add_argument('--test', action='store_true', default=False,
                         help="run the test to check if the script is working")
+    parser.add_argument('-v', '--verbose', action='count', default=0,
+                        help="increase output verbosity")
     parser.add_argument('-V', '--version', action='version', version=f'{ver}')
 
     args = parser.parse_args()
 
+    # check args
     if args.test:
         print("Running test")
-        args.input = [Path("testFiles/testPic.jpg")]
+        args.input = Path("testFiles/I0SH03/")
         args.background = Path("testFiles/testBackground.jpg")
 
     if args.input is None:
@@ -217,15 +225,17 @@ def main():
                 print('Use --force to overwrite the file')
                 print('Exiting...')
                 exit()
-    
 
-    xMeans, yMeans = getBeamPos(args)
+    if args.verbose > 0:
+        print(f"Args:\n{args}\n")
 
-    if args.output is not None:
-        # remove fileextension from output file
-        path = Path(args.output.with_suffix('.csv'))
-        # create output directory if it does not exist
-        writeToOutputFile(path, xMeans, yMeans, args.input)
+    try:
+        main(args.input, args.background, args.output, args.show, args.plot_gauss, args.round, args.force, args.verbose)
+    except KeyboardInterrupt:
+        print("Exiting...")
+        exit()
 
-if __name__ == "__main__":
-    main()
+
+
+
+
