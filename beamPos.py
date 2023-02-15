@@ -6,6 +6,7 @@ import cv2
 from scipy.optimize import curve_fit
 import matplotlib
 import matplotlib.pyplot as plt
+import csv
 
 
 ver = "0.0.1"
@@ -165,13 +166,20 @@ def main(inputFolder: Path, background: Path, output: Path, show: bool, plot_gau
 
     # get the beam position
     beamPos, std = getBeamPos(imagesWithCurrent, plot_gauss, verbosity, figureName)
-    print(f"beam position: {beamPos}")
-    print(f"standard deviation: {std}")
+    avgBeamPos = {}
+    for current in beamPos:
+        avgBeamPos[current] = np.mean(beamPos[current], axis=0)
 
-    if output is not None:
-        if output.exists() and not force:
-            print(f"ERROR: {output} already exists. Use -f to overwrite.")
-            return
+    if verbosity > 2:
+        print(f"beam position: {beamPos}")
+        print(f"standard deviation: {std}")
+        print(f"average beam position: {avgBeamPos}")
+
+    with open(output, "w") as f:
+        writer = csv.writer(f, delimiter="\t")
+        writer.writerow(["current", "xMean", "yMean", "xStd", "yStd"])
+        for current in avgBeamPos:
+            writer.writerow([current, avgBeamPos[current][0], avgBeamPos[current][1], std[current][0], std[current][1]])
 
 
 
@@ -182,7 +190,7 @@ if __name__ == "__main__":
     # arguments
     parser.add_argument("-i", "--input", type=Path, help="Folder containing the subfolders with the images and the current.txt file")
     parser.add_argument("-b", "--background", help="Background image to be used for the subtraction")
-    parser.add_argument("-o", "--output", type=Path, default=None, help=".csv file to save the results to. If not specified, the results will be printed to the console.")
+    parser.add_argument("-o", "--output", type=Path, default=None, help=".csv file to save the results to. If not specified, the results will be stored in a file with the same name as the input folder")
     parser.add_argument('--show', action='store_true', default=False,help="show the image")
     parser.add_argument('--plot-gauss', action='store_true', default=False, help="plot the gaussian fit for each image")
     parser.add_argument('--round', action='store_true',
@@ -218,19 +226,23 @@ if __name__ == "__main__":
             f"ERROR: Background file {args.background} does not exist\nExiting...")
         exit()
 
-    if args.output is not None:
-        if args.output.is_file(): 
-            if not args.force:
-                print('ERROR: Output file already exists')
-                print('Use --force to overwrite the file')
-                print('Exiting...')
-                exit()
+    if args.output is None:
+        # if no output file is specified, use the input folder name
+        outputFile = args.input / f"{args.input.name}.csv"
+        print(f"No output file specified, using {outputFile}")
+
+    if outputFile.is_file():
+        if not args.force:
+            print('ERROR: Output file already exists')
+            print('Use --force to overwrite the file')
+            print('Exiting...')
+            exit()
 
     if args.verbose > 0:
         print(f"Args:\n{args}\n")
 
     try:
-        main(args.input, args.background, args.output, args.show, args.plot_gauss, args.round, args.force, args.verbose)
+        main(args.input, args.background, outputFile, args.show, args.plot_gauss, args.round, args.force, args.verbose)
     except KeyboardInterrupt:
         print("Exiting...")
         exit()

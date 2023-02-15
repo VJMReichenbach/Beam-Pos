@@ -30,55 +30,53 @@ def readFromInputFile(path: Path) -> list:
 def main():
     parser = argparse.ArgumentParser(description=description, epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter)
 
-    parser.add_argument("input", help="The input directory. It's name will be used as the figure name. Inside each of these folders has to be one or more .csv files. These names will be used as the value for the current", type=Path)
+    parser.add_argument("input", type=Path, help="a csv file containing the data")  
 
     args = parser.parse_args()
     print(args)
 
-    # check if input folder exists and contains one or more .csv files
-    if not args.input.is_dir():
-        raise argparse.ArgumentTypeError(f"Input directory \"{args.input}\" does not exist")
-    if not any(file.suffix == ".csv" for file in args.input.iterdir()):
-        raise argparse.ArgumentTypeError(f"Input directory \"{args.input}\" does not contain any .csv files")
-    
+    # check if the input file is valid
+    if not args.input.exists():
+        print(f"Error: Input file {args.input} does not exist!")
+        exit(1)
+    if not args.input.suffix == ".csv":
+        print(f"Error: Input file {args.input} is not a csv file!")
+        exit(1)
+
+    data = readFromInputFile(args.input)
+
     # 2 subplots, one for the x values and one for the y values
     # current is x axis
     # xMean and yMean are y axis
+    # xStd and yStd are error bars
     current = []
     xMean = []
     yMean = []
+    xStd = []
+    yStd = []
 
-    # read input file
-    data = []
-    filenames = []
-    for file in args.input.iterdir():
-        if file.suffix == ".csv":
-            data.append(readFromInputFile(file))
-            filenames.append(file.name.split(".csv")[0]) # get the current from the file name
 
-    # get the xMean and yMean values
-    for i in range(len(data)):
-        for j in range(len(data[i])):
-            xMean.append(float(data[i][j][0]))
-            yMean.append(float(data[i][j][1]))
-            current.append(float(filenames[i]))
-    print(xMean)
-    print(yMean)
-    print(current)
+    # read the data
+    for row in data:
+        current.append(float(row[0]))
+        xMean.append(float(row[1]))
+        yMean.append(float(row[2]))
+        xStd.append(float(row[3]))
+        yStd.append(float(row[4]))
 
     # plot the data
-    fig, (ax1, ax2) = plt.subplots(1, 2)
-    fig.suptitle(args.input.name)
-    ax1.plot(current, xMean, "o")
-    ax1.set_title("xMean")
+    fig, (ax1, ax2) = plt.subplots(2, 1)
+    # figure name is input file name without extension
+    fig.suptitle(args.input.stem)
+    ax1.errorbar(current, xMean, xerr=0, yerr=xStd, fmt="o")
+    ax1.set_title("x")
+    ax1.set_ylabel("Position [px]")
     ax1.set_xlabel("Current [A]")
-    ax1.set_ylabel("xMean [px]")
-    ax2.plot(current, yMean, "o")
-    ax2.set_title("yMean")
+    ax2.errorbar(current, yMean, xerr=0, yerr=yStd, fmt="o")
+    ax2.set_title("y")
+    ax2.set_ylabel("Position [px]")
     ax2.set_xlabel("Current [A]")
-    ax2.set_ylabel("yMean [px]")
     plt.show()
-
 
 if __name__ == "__main__":
     main()
