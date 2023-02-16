@@ -15,7 +15,7 @@ pip install -r requirements.txt
 - [x] dann mean und std mitteln und diese zum strom plotten (über 5 bilder zu einem strom)
 
 
-- [] Lineare funktion zu x(I) (pos abh vom strom) --> dazu lineare regression
-- [] **Wichtig** funktion x(I) und y(I) machen bis donnerstag fertig 
+- [x] Lineare funktion zu x(I) (pos abh vom strom) --> dazu lineare regression
+- [x] **Wichtig** funktion x(I) und y(I) machen bis donnerstag fertig 
 
 - [] evt median filter für daten
