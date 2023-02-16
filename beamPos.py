@@ -230,6 +230,8 @@ if __name__ == "__main__":
         # if no output file is specified, use the input folder name
         outputFile = args.input / f"{args.input.name}.csv"
         print(f"No output file specified, using {outputFile}")
+    else:
+        outputFile = Path(args.output.stem + ".csv")
 
     if outputFile.is_file():
         if not args.force:

@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import argparse
 from pathlib import Path
 import csv
+import numpy as np
+from sklearn.linear_model import LinearRegression
 
 ver = "0.0.1"
 author = "Valentin Reichenbach"
@@ -33,7 +35,6 @@ def main():
     parser.add_argument("input", type=Path, help="a csv file containing the data")  
 
     args = parser.parse_args()
-    print(args)
 
     # check if the input file is valid
     if not args.input.exists():
@@ -64,6 +65,28 @@ def main():
         xStd.append(float(row[3]))
         yStd.append(float(row[4]))
 
+    # linear regression for x and y
+    xModel = LinearRegression().fit(np.array(current).reshape(-1, 1), np.array(xMean).reshape(-1, 1))
+    yModel = LinearRegression().fit(np.array(current).reshape(-1, 1), np.array(yMean).reshape(-1, 1))
+    rSqX = xModel.score(np.array(current).reshape(-1, 1), np.array(xMean).reshape(-1, 1))
+    rSqY = yModel.score(np.array(current).reshape(-1, 1), np.array(yMean).reshape(-1, 1))
+    
+    # generate functions for x(I) and y(I)
+    x_I = f"x(I) = {xModel.coef_[0][0]:.2f} * I + {xModel.intercept_[0]:.2f}"
+    y_I = f"y(I) = {yModel.coef_[0][0]:.2f} * I + {yModel.intercept_[0]:.2f}"
+
+    # invert the functions
+    I_x = f"I(x) = {1/xModel.coef_[0][0]:.2f} * x + {xModel.intercept_[0]/xModel.coef_[0][0]:.2f}"
+    I_y = f"I(y) = {1/yModel.coef_[0][0]:.2f} * y + {yModel.intercept_[0]/yModel.coef_[0][0]:.2f}"
+    
+    print("\nLinear regression:")
+    print(f"R^2 x: {rSqX:.2f}")
+    print(f"R^2 y: {rSqY:.2f}")
+    print(x_I)
+    print(y_I)
+    print(I_x)
+    print(I_y)
+
     # plot the data
     fig, (ax1, ax2) = plt.subplots(2, 1)
     # figure name is input file name without extension
@@ -76,6 +99,14 @@ def main():
     ax2.set_title("y")
     ax2.set_ylabel("Position [px]")
     ax2.set_xlabel("Current [A]")
+
+    # plot the linear regression
+    ax1.plot(current, xModel.predict(np.array(current).reshape(-1, 1)), label=x_I)
+    ax2.plot(current, yModel.predict(np.array(current).reshape(-1, 1)), label=y_I)
+
+    # add legend
+    ax1.legend()
+    ax2.legend()
     plt.show()
 
 if __name__ == "__main__":
