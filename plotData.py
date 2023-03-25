@@ -72,12 +72,12 @@ def main():
     rSqY = yModel.score(np.array(current).reshape(-1, 1), np.array(yMean).reshape(-1, 1))
     
     # generate functions for x(I) and y(I)
-    x_I = f"x(I) = {xModel.coef_[0][0]:.2f} * I + {xModel.intercept_[0]:.2f}"
-    y_I = f"y(I) = {yModel.coef_[0][0]:.2f} * I + {yModel.intercept_[0]:.2f}"
+    x_I = f"x(I) = {xModel.coef_[0][0]:.6f} * I + {xModel.intercept_[0]:.2f}"
+    y_I = f"y(I) = {yModel.coef_[0][0]:.6f} * I + {yModel.intercept_[0]:.2f}"
 
     # invert the functions
-    I_x = f"I(x) = {1/xModel.coef_[0][0]:.2f} * x + {xModel.intercept_[0]/xModel.coef_[0][0]:.2f}"
-    I_y = f"I(y) = {1/yModel.coef_[0][0]:.2f} * y + {yModel.intercept_[0]/yModel.coef_[0][0]:.2f}"
+    I_x = f"I(x) = {1/xModel.coef_[0][0]:.6f} * x + {xModel.intercept_[0]/xModel.coef_[0][0]:.2f}"
+    I_y = f"I(y) = {1/yModel.coef_[0][0]:.6f} * y + {yModel.intercept_[0]/yModel.coef_[0][0]:.2f}"
     
     print("\nLinear regression:")
     print(f"R^2 x: {rSqX:.2f}")
