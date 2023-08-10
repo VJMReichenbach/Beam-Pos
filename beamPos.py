@@ -134,10 +134,17 @@ def getBeamPos(imagesWithCurrent: dict, plot: bool, verbosity: int, figureName: 
                 fig.suptitle(f"{figureName} with {current}A")
                 ax1.plot(xValues, label="x values")
                 ax1.plot(xGauss, label="x gaussian fit")
-                ax1.set_title("X values")
                 ax2.plot(yValues, label="y values")
                 ax2.plot(yGauss, label="y gaussian fit")
+
+                ax1.set_title("X values")
                 ax2.set_title("Y values")
+
+                ax1.set_xlabel("Pixel")
+                ax2.set_xlabel("Pixel")
+                ax1.set_ylabel("Light intensity")
+                ax2.set_ylabel("Light intensity") 
+
                 ax1.legend()
                 ax2.legend()
                 plt.show()

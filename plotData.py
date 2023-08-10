@@ -89,8 +89,10 @@ def main():
 
     # plot the data
     fig, (ax1, ax2) = plt.subplots(2, 1)
+    
     # figure name is input file name without extension
-    fig.suptitle(args.input.stem)
+    # fig.suptitle(args.input.stem)
+
     ax1.errorbar(current, xMean, xerr=0, yerr=xStd, fmt="o")
     ax1.set_title("x")
     ax1.set_ylabel("Position [px]")
