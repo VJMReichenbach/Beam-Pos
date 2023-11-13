@@ -93,18 +93,18 @@ def main():
     # figure name is input file name without extension
     # fig.suptitle(args.input.stem)
 
-    ax1.errorbar(current, xMean, xerr=0, yerr=xStd, fmt="o")
+    ax1.errorbar(current, xMean, xerr=0, yerr=xStd, fmt="o", color='darkblue')
     ax1.set_title("x")
-    ax1.set_ylabel("Position [px]")
-    ax1.set_xlabel("Current [A]")
-    ax2.errorbar(current, yMean, xerr=0, yerr=yStd, fmt="o")
+    ax1.set_ylabel("Horizontale Strahlposition in px")
+    ax1.set_xlabel("Dipolstrom in A")
+    ax2.errorbar(current, yMean, xerr=0, yerr=yStd, fmt="o", color='darkblue')
     ax2.set_title("y")
-    ax2.set_ylabel("Position [px]")
-    ax2.set_xlabel("Current [A]")
+    ax2.set_ylabel("Horizontale Strahlposition in px")
+    ax2.set_xlabel("Dipolstrom in A")
 
     # plot the linear regression
-    ax1.plot(current, xModel.predict(np.array(current).reshape(-1, 1)), label=x_I)
-    ax2.plot(current, yModel.predict(np.array(current).reshape(-1, 1)), label=y_I)
+    ax1.plot(current, xModel.predict(np.array(current).reshape(-1, 1)), label=x_I, color='darkviolet')
+    ax2.plot(current, yModel.predict(np.array(current).reshape(-1, 1)), label=y_I, color='darkviolet')
 
     # add legend
     ax1.legend()
